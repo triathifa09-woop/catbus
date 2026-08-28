@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Micro:bit Dual Controller - Cyberpunk Purple</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- TensorFlow & Teachable Machine Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    
+    <!-- Firebase SDK (v9 Compatibility Mode) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        deepPurple: '#0b0617',
+                        cardPurple: '#160d2b',
+                        borderPurple: '#3b2166',
+                        purpleGlow: '#a855f7'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .active-btn {
+            background-color: #a855f7 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 30px #a855f7 !important;
+            border-color: #f3e8ff !important;
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="bg-deepPurple text-purple-100 min-h-screen p-4 lg:p-8 font-sans flex flex-col justify-between">
+
+    <div class="w-full max-w-[1600px] mx-auto space-y-6">
+        <!-- Header Section -->
+        <header class="w-full bg-cardPurple/80 backdrop-blur-xl rounded-3xl p-6 border border-borderPurple shadow-[0_0_40px_rgba(168,85,247,0.15)] flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl lg:text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-300 via-purple-400 to-indigo-300">
+                    CYBERPUNK ROBOT CONTROLLER
+                </h1>
+                <p class="text-purple-300/60 text-xs mt-1">Dual Control System: Manual D-Pad & AI Hand Gesture Recognition</p>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                <!-- Mode Indicator Badge -->
+                <div id="mode-badge" class="px-4 py-2.5 rounded-xl bg-purple-950/80 border border-purple-800 text-xs font-bold text-purple-300 tracking-wider uppercase">
+                    Mode: Manual Joystick
+                </div>
+
+                <!-- Firebase Config Modal Button -->
+                <button onclick="toggleModal(true)" class="p-2.5 bg-purple-900/50 hover:bg-purple-800/60 text-orange-400 rounded-xl border border-purple-700/60 transition active:scale-95" title="Pengaturan Firebase">
+                    <i class="fas fa-fire text-lg"></i>
+                </button>
+
+                <!-- Bluetooth Connection Button -->
+                <button id="btn-connect" onclick="connectBluetooth()" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs shadow-[0_0_20px_rgba(168,85,247,0.4)] transition duration-200 active:scale-95 flex items-center gap-2">
+                    <i class="fab fa-bluetooth-b text-sm"></i>
+                    <span id="ble-btn-text">Hubungkan Micro:bit</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Grid Layout (Full Width 2-Column Desktop) -->
+        <main class="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- KOLOM 1: JOYSTICK D-PAD CONTROLLER -->
+            <section class="bg-cardPurple/80 backdrop-blur-xl rounded-3xl p-6 lg:p-8 border border-borderPurple shadow-[0_0_40px_rgba(168,85,247,0.1)] flex flex-col items-center justify-between min-h-[500px]">
+                <div class="w-full flex justify-between items-center mb-2">
+                    <h2 class="text-lg font-bold text-purple-200 flex items-center gap-2">
+                        <i class="fas fa-gamepad text-purple-400"></i> D-Pad Joystick
+                    </h2>
+                    <span class="text-xs text-purple-300/50">Klik/Tahan untuk Gerak Manual</span>
+                </div>
+
+                <!-- Ring D-Pad Container -->
+                <div class="relative w-72 h-72 sm:w-[320px] sm:h-[320px] rounded-full bg-slate-950/90 border-4 border-purple-900/60 shadow-[inset_0_0_40px_rgba(0,0,0,0.9)] flex items-center justify-center p-4 my-auto">
+                    
+                    <div class="grid grid-cols-3 gap-3 w-full h-full p-2 select-none">
+                        <div></div>
+                        <!-- BUTTON ATAS -->
+                        <button id="bt-up" class="dpad-btn group relative w-full h-full bg-purple-950/40 rounded-t-3xl border-2 border-purple-800/50 flex flex-col items-center justify-center text-purple-300 hover:bg-purple-800/40 transition">
+                            <i class="fas fa-chevron-up text-2xl group-hover:-translate-y-1 transition-transform"></i>
+                            <span class="text-[9px] font-black tracking-widest mt-1 opacity-60 uppercase">MAJU</span>
+                        </button>
+                        <div></div>
+
+                        <!-- BUTTON KIRI -->
+                        <button id="bt-left" class="dpad-btn group relative w-full h-full bg-purple-950/40 rounded-l-3xl border-2 border-purple-800/50 flex flex-col items-center justify-center text-purple-300 hover:bg-purple-800/40 transition">
+                            <i class="fas fa-chevron-left text-2xl group-hover:-translate-x-1 transition-transform"></i>
+                            <span class="text-[9px] font-black tracking-widest mt-1 opacity-60 uppercase">KIRI</span>
+                        </button>
+
+                        <!-- PUSAT STATUS -->
+                        <div class="flex items-center justify-center">
+                            <div class="w-12 h-12 rounded-full bg-purple-950 border-2 border-purple-700/60 flex items-center justify-center shadow-inner">
+                                <div id="status-dot" class="w-4 h-4 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.8)] transition-all"></div>
+                            </div>
+                        </div>
+
+                        <!-- BUTTON KANAN -->
+                        <button id="bt-right" class="dpad-btn group relative w-full h-full bg-purple-950/40 rounded-r-3xl border-2 border-purple-800/50 flex flex-col items-center justify-center text-purple-300 hover:bg-purple-800/40 transition">
+                            <i class="fas fa-chevron-right text-2xl group-hover:translate-x-1 transition-transform"></i>
+                            <span class="text-[9px] font-black tracking-widest mt-1 opacity-60 uppercase">KANAN</span>
+                        </button>
+
+                        <div></div>
+                        <!-- BUTTON BAWAH -->
+                        <button id="bt-down" class="dpad-btn group relative w-full h-full bg-purple-950/40 rounded-b-3xl border-2 border-purple-800/50 flex flex-col items-center justify-center text-purple-300 hover:bg-purple-800/40 transition">
+                            <span class="text-[9px] font-black tracking-widest mb-1 opacity-60 uppercase">MUNDUR</span>
+                            <i class="fas fa-chevron-down text-2xl group-hover:translate-y-1 transition-transform"></i>
+                        </button>
+                        <div></div>
+                    </div>
+                </div>
+
+                <!-- Controller Info Footer -->
+                <div class="w-full flex justify-between items-center text-xs text-purple-300/60 border-t border-borderPurple/60 pt-4 mt-2">
+                    <span>Micro:bit BLE: <strong id="ble-status" class="text-red-400">Terputus</strong></span>
+                    <span>Firebase Sync: <strong id="fb-status" class="text-yellow-400">Belum Terhubung</strong></span>
+                </div>
+            </section>
+
+            <!-- KOLOM 2: CAMERA HAND GESTURE RECOGNITION -->
+            <section class="bg-cardPurple/80 backdrop-blur-xl rounded-3xl p-6 lg:p-8 border border-borderPurple shadow-[0_0_40px_rgba(168,85,247,0.1)] flex flex-col items-center justify-between min-h-[500px]">
+                <div class="w-full flex justify-between items-center mb-2">
+                    <h2 class="text-lg font-bold text-purple-200 flex items-center gap-2">
+                        <i class="fas fa-video text-purple-400"></i> AI Hand Gesture
+                    </h2>
+                    <!-- Toggle Switch AI Camera -->
+                    <button id="btn-toggle-cam" onclick="toggleCamera()" class="px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-xl text-xs shadow-[0_0_15px_rgba(168,85,247,0.4)] transition active:scale-95 flex items-center gap-2">
+                        <i class="fas fa-power-off"></i>
+                        <span id="cam-btn-text">Nyalakan Kamera</span>
+                    </button>
+                </div>
+
+                <!-- Camera Container -->
+                <div class="relative w-full max-w-[280px] aspect-square rounded-2xl overflow-hidden border-2 border-purple-600/50 shadow-[0_0_35px_rgba(168,85,247,0.25)] bg-black/90 flex flex-col items-center justify-center my-auto">
+                    <div id="webcam-container" class="w-full h-full flex items-center justify-center"></div>
+                    <div id="cam-placeholder" class="text-purple-400/50 flex flex-col items-center gap-2">
+                        <i class="fas fa-camera text-3xl mb-1"></i>
+                        <span class="text-xs">Kamera Off</span>
+                    </div>
+                </div>
+
+                <!-- Predictions Result Log -->
+                <div class="w-full border-t border-borderPurple/60 pt-4 mt-2">
+                    <div class="text-[11px] text-purple-300/70 mb-2 font-semibold flex justify-between">
+                        <span>Akurasi Teachable Machine:</span>
+                        <span>Prediksi Tertinggi = Aktif</span>
+                    </div>
+                    <div id="label-container" class="grid grid-cols-2 gap-2 text-xs font-mono"></div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Bottom Command Status Banner -->
+    <footer class="w-full max-w-[1600px] mx-auto mt-6 bg-cardPurple/90 rounded-2xl p-4 border border-borderPurple flex justify-between items-center text-sm">
+        <span class="text-purple-300/80 font-medium">Perintah Terkirim:</span>
+        <div class="bg-purple-950 px-6 py-1.5 rounded-xl border border-purple-800/60 font-mono font-bold text-purple-300 text-base uppercase tracking-wider shadow-inner">
+            <span id="last-cmd">STOP</span>
+        </div>
+    </footer>
+
+    <!-- MODAL SETTING FIREBASE -->
+    <div id="fb-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="bg-cardPurple border border-borderPurple rounded-3xl p-6 w-full max-w-md shadow-[0_0_50px_rgba(168,85,247,0.3)] space-y-4 relative">
+            <div class="flex justify-between items-center border-b border-borderPurple pb-3">
+                <h3 class="text-base font-bold text-purple-200 flex items-center gap-2">
+                    <i class="fas fa-fire text-orange-400"></i> Konfigurasi Firebase Realtime DB
+                </h3>
+                <button onclick="toggleModal(false)" class="text-purple-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-purple-300 mb-1">API Key</label>
+                    <input type="text" id="fb-api-key" placeholder="AIzaSy..." class="w-full bg-deepPurple border border-purple-800/80 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-purple-300 mb-1">Database URL</label>
+                    <input type="text" id="fb-db-url" placeholder="https://your-app-default-rtdb.firebaseio.com" class="w-full bg-deepPurple border border-purple-800/80 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-500">
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end gap-2">
+                <button onclick="toggleModal(false)" class="px-4 py-2 bg-purple-950 hover:bg-purple-900 text-purple-300 font-bold text-xs rounded-xl transition">
+                    Batal
+                </button>
+                <button onclick="initFirebase()" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition">
+                    Simpan & Connect
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script type="text/javascript">
+    // --- MODAL TOGGLE ---
+    function toggleModal(show) {
+        const modal = document.getElementById('fb-modal');
+        if (show) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        } else {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    }
+
+    // --- 0. KONFIGURASI FIREBASE ---
+    let dbRef = null;
+
+    function initFirebase() {
+        const apiKey = document.getElementById('fb-api-key').value.trim();
+        const databaseURL = document.getElementById('fb-db-url').value.trim();
+
+        if (!apiKey || !databaseURL) {
+            alert("Harap isi API Key dan Database URL Firebase!");
+            return;
+        }
+
+        try {
+            const firebaseConfig = { apiKey, databaseURL };
+
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            } else {
+                firebase.app().delete().then(() => {
+                    firebase.initializeApp(firebaseConfig);
+                });
+            }
+
+            dbRef = firebase.database().ref('robot_control');
+            document.getElementById('fb-status').innerText = "Terhubung";
+            document.getElementById('fb-status').className = "text-green-400 font-bold";
+            toggleModal(false);
+            alert("Berhasil terhubung ke Firebase!");
+        } catch(e) {
+            console.error("Firebase Init Error:", e);
+            document.getElementById('fb-status').innerText = "Gagal Konek";
+            document.getElementById('fb-status').className = "text-red-400 font-bold";
+            alert("Gagal konek Firebase. Periksa API Key / Database URL.");
+        }
+    }
+
+    function sendToFirebase(command, mode) {
+        if (dbRef) {
+            dbRef.set({
+                command: command,
+                mode: mode,
+                timestamp: Date.now()
+            }).catch(err => console.error("Firebase Sync Error:", err));
+        }
+    }
+
+    // --- 1. CONFIG & GLOBALS ---
+    const MODEL_URL = "https://teachablemachine.withgoogle.com/models/mZ_Qhc9ZT/";
+    let model, webcam, labelContainer, maxPredictions;
+    let bluetoothDevice, uartTxCharacteristic;
+    let currentCommand = "stop";
+    let isAiMode = false;
+
+    const UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const UART_TX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+
+    // --- 2. WEB BLUETOOTH INTEGRATION ---
+    async function connectBluetooth() {
+        try {
+            bluetoothDevice = await navigator.bluetooth.requestDevice({
+                filters: [{ namePrefix: 'BBC micro:bit' }],
+                optionalServices: [UART_SERVICE_UUID]
+            });
+
+            const server = await bluetoothDevice.gatt.connect();
+            const service = await server.getPrimaryService(UART_SERVICE_UUID);
+            uartTxCharacteristic = await service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
+
+            document.getElementById('ble-status').innerText = "Terhubung";
+            document.getElementById('ble-status').className = "text-green-400";
+            document.getElementById('ble-btn-text').innerText = "Micro:bit Terhubung";
+            document.getElementById('status-dot').className = "w-4 h-4 bg-green-500 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.9)] animate-pulse";
+        } catch (error) {
+            console.error("Bluetooth Gagal:", error);
+            alert("Gagal/Dibatalkan terhubung dengan micro:bit.");
+        }
+    }
+
+    function sendToMicrobit(command) {
+        if (currentCommand === command) return;
+        currentCommand = command;
+        document.getElementById('last-cmd').innerText = command;
+
+        sendToFirebase(command, isAiMode ? "AI_AUTOMATIC" : "MANUAL_JOYSTICK");
+
+        if (uartTxCharacteristic) {
+            const encoder = new TextEncoder();
+            uartTxCharacteristic.writeValue(encoder.encode(command + "\n"))
+                .catch(err => console.error("Bluetooth TX Error:", err));
+        }
+    }
+
+    // --- 3. D-PAD MANUAL JOYSTICK LOGIC ---
+    function setupManualJoystick() {
+        const buttons = {
+            'bt-up': 'up',
+            'bt-down': 'down',
+            'bt-left': 'left',
+            'bt-right': 'right'
+        };
+
+        Object.keys(buttons).forEach(id => {
+            const btn = document.getElementById(id);
+            const cmd = buttons[id];
+
+            const startPress = (e) => {
+                e.preventDefault();
+                if (!isAiMode) {
+                    highlightButton(id);
+                    sendToMicrobit(cmd);
+                }
+            };
+
+            const endPress = (e) => {
+                e.preventDefault();
+                if (!isAiMode) {
+                    resetButtons();
+                    sendToMicrobit("stop");
+                }
+            };
+
+            btn.addEventListener('mousedown', startPress);
+            btn.addEventListener('mouseup', endPress);
+            btn.addEventListener('mouseleave', endPress);
+            btn.addEventListener('touchstart', startPress);
+            btn.addEventListener('touchend', endPress);
+        });
+    }
+    setupManualJoystick();
+
+    // --- 4. TEACHABLE MACHINE AI CAMERA ---
+    async function toggleCamera() {
+        if (!isAiMode) {
+            document.getElementById('cam-btn-text').innerText = "Memuat AI...";
+            if (!model) {
+                const modelURL = MODEL_URL + "model.json";
+                const metadataURL = MODEL_URL + "metadata.json";
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+            }
+
+            const flip = true;
+            webcam = new tmImage.Webcam(280, 280, flip);
+            await webcam.setup();
+            await webcam.play();
+
+            document.getElementById('cam-placeholder').style.display = "none";
+            document.getElementById('webcam-container').appendChild(webcam.canvas);
+
+            labelContainer = document.getElementById("label-container");
+            labelContainer.innerHTML = "";
+            for (let i = 0; i < maxPredictions; i++) {
+                labelContainer.appendChild(document.createElement("div"));
+            }
+
+            isAiMode = true;
+            document.getElementById('cam-btn-text').innerText = "Matikan Kamera";
+            document.getElementById('btn-toggle-cam').classList.replace('bg-purple-700', 'bg-red-600');
+            document.getElementById('mode-badge').innerText = "Mode: AI Gesture";
+            document.getElementById('mode-badge').className = "px-4 py-2.5 rounded-xl bg-purple-600 border border-purple-400 text-xs font-bold text-white tracking-wider uppercase animate-pulse";
+
+            window.requestAnimationFrame(loop);
+        } else {
+            isAiMode = false;
+            if (webcam) webcam.stop();
+            document.getElementById('webcam-container').innerHTML = "";
+            document.getElementById('cam-placeholder').style.display = "flex";
+            document.getElementById('label-container').innerHTML = "";
+            
+            document.getElementById('cam-btn-text').innerText = "Nyalakan Kamera";
+            document.getElementById('btn-toggle-cam').classList.replace('bg-red-600', 'bg-purple-700');
+            document.getElementById('mode-badge').innerText = "Mode: Manual Joystick";
+            document.getElementById('mode-badge').className = "px-4 py-2.5 rounded-xl bg-purple-950/80 border border-purple-800 text-xs font-bold text-purple-300 tracking-wider uppercase";
+
+            resetButtons();
+            sendToMicrobit("stop");
+        }
+    }
+
+    async function loop() {
+        if (!isAiMode) return;
+        webcam.update();
+        await predict();
+        window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+        const prediction = await model.predict(webcam.canvas);
+        let highestProb = 0;
+        let bestClass = "stop";
+
+        for (let i = 0; i < maxPredictions; i++) {
+            const className = prediction[i].className;
+            const probability = prediction[i].probability;
+
+            labelContainer.childNodes[i].innerHTML = 
+                `<div class="bg-purple-950/60 p-1.5 rounded-lg border border-purple-800/40 flex justify-between items-center">
+                    <span class="capitalize text-purple-200 text-[11px]">${className}</span>
+                    <span class="font-bold text-purple-400 text-[11px]">${(probability * 100).toFixed(0)}%</span>
+                 </div>`;
+
+            if (probability > highestProb) {
+                highestProb = probability;
+                bestClass = className.toLowerCase();
+            }
+        }
+
+        if (highestProb < 0.65) bestClass = "stop";
+
+        if (bestClass.includes("atas") || bestClass.includes("up") || bestClass.includes("maju")) {
+            highlightButton('bt-up');
+            sendToMicrobit("up");
+        } else if (bestClass.includes("bawah") || bestClass.includes("down") || bestClass.includes("mundur")) {
+            highlightButton('bt-down');
+            sendToMicrobit("down");
+        } else if (bestClass.includes("kiri") || bestClass.includes("left")) {
+            highlightButton('bt-left');
+            sendToMicrobit("left");
+        } else if (bestClass.includes("kanan") || bestClass.includes("right")) {
+            highlightButton('bt-right');
+            sendToMicrobit("right");
+        } else {
+            resetButtons();
+            sendToMicrobit("stop");
+        }
+    }
+
+    // --- 5. UI HIGHLIGHT HELPER ---
+    function highlightButton(buttonId) {
+        resetButtons();
+        const btn = document.getElementById(buttonId);
+        if (btn) btn.classList.add('active-btn');
+    }
+
+    function resetButtons() {
+        ['bt-up', 'bt-down', 'bt-left', 'bt-right'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.classList.remove('active-btn');
+        });
+    }
+</script>
+</body>
+</html>
